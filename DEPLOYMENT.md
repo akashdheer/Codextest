@@ -5,6 +5,9 @@
 - `ui_company_overview.py`: Flask web UI where users type a company name.
 - `templates/index.html`: HTML page used by Flask.
 - `requirements.txt`: Python packages required by the app.
+- `wsgi.py`: production WSGI entrypoint for gunicorn.
+- `Procfile`: process command for platforms that read Procfile.
+- `render.yaml`: optional Render blueprint with build/start settings.
 
 ## Folder structure (keep this layout)
 
@@ -13,6 +16,9 @@ Codextest/
 ├─ company_overview_agent.py
 ├─ ui_company_overview.py
 ├─ requirements.txt
+├─ wsgi.py
+├─ Procfile
+├─ render.yaml
 └─ templates/
    └─ index.html
 ```
@@ -58,3 +64,16 @@ Open: `http://127.0.0.1:8080`
 ## Notes
 - This UI can run without ADK server runtime because it calls `build_company_report` directly.
 - For production, disable debug mode and use a production WSGI server.
+
+
+## Production start option (gunicorn)
+
+If you want a production-style start command, use gunicorn (already added to `requirements.txt`):
+
+```bash
+gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
+```
+
+- `wsgi.py` exposes the Flask app object as `app`.
+- `Procfile` contains the same command for platforms that read it automatically.
+- `render.yaml` can be used to provision this service config directly on Render.
