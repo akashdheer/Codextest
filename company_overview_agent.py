@@ -14,6 +14,8 @@ USER_AGENT = "company-overview-adk-agent/1.0"
 TIMEOUT_SECONDS = 20
 
 
+# # CLASS: CompanyLookupResult
+# Purpose: store company name, selected ticker symbol, and raw candidates.
 @dataclass
 class CompanyLookupResult:
     """Container for ticker lookup results."""
@@ -23,6 +25,8 @@ class CompanyLookupResult:
     candidates: list[dict[str, Any]]
 
 
+# # FUNCTION: _load_yfinance
+# Purpose: import yfinance lazily so this file can be imported without hard dependency failure.
 def _load_yfinance():
     """Load yfinance dynamically.
 
@@ -37,6 +41,8 @@ def _load_yfinance():
         return None
 
 
+# # FUNCTION: _safe_get
+# Purpose: make safe HTTP GET requests and return JSON dictionary (or {}).
 def _safe_get(url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
     """Execute an HTTP GET request and return parsed JSON."""
 
@@ -50,6 +56,8 @@ def _safe_get(url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         return {}
 
 
+# # FUNCTION: lookup_ticker
+# Purpose: resolve a company name into the best Yahoo Finance ticker symbol candidate.
 def lookup_ticker(company_name: str) -> dict[str, Any]:
     """Get best Yahoo Finance ticker for a company name.
 
@@ -77,6 +85,8 @@ def lookup_ticker(company_name: str) -> dict[str, Any]:
     return result.__dict__
 
 
+# # FUNCTION: get_general_overview
+# Purpose: fetch core company profile fields such as sector, industry, and summary.
 def get_general_overview(symbol: str) -> dict[str, Any]:
     """Fetch broad company profile from Yahoo Finance.
 
@@ -108,6 +118,8 @@ def get_general_overview(symbol: str) -> dict[str, Any]:
     }
 
 
+# # FUNCTION: infer_products_from_summary
+# Purpose: infer product/service-related sentences from overview summary text.
 def infer_products_from_summary(summary: str | None) -> dict[str, Any]:
     """Infer product/service bullets from text summary.
 
@@ -143,6 +155,8 @@ def infer_products_from_summary(summary: str | None) -> dict[str, Any]:
     }
 
 
+# # FUNCTION: get_shareholder_pattern
+# Purpose: return major and institutional holder information for a ticker.
 def get_shareholder_pattern(symbol: str) -> dict[str, Any]:
     """Fetch shareholder pattern (major + institutional holders).
 
@@ -176,6 +190,8 @@ def get_shareholder_pattern(symbol: str) -> dict[str, Any]:
     }
 
 
+# # FUNCTION: build_company_report
+# Purpose: orchestrate ticker lookup + overview + products + shareholder pattern into one report.
 def build_company_report(company_name: str) -> dict[str, Any]:
     """Build full report combining overview, products, and shareholder pattern.
 
@@ -203,6 +219,8 @@ def build_company_report(company_name: str) -> dict[str, Any]:
     }
 
 
+# # FUNCTION: create_root_agent
+# Purpose: create and return a Google ADK Agent with configured tools and instructions.
 def create_root_agent():
     """Create and return Google ADK Agent instance.
 
