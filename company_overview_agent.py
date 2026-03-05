@@ -1,48 +1,33 @@
-"""Google ADK agent: Company Overview Provider."""
+"""Google ADK agent: Company Overview Provider (Google Search API based)."""
 
 from __future__ import annotations
 
 import importlib
 import json
+import os
 import re
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
-USER_AGENT = "company-overview-adk-agent/1.0"
+USER_AGENT = "company-overview-adk-agent/2.0"
 TIMEOUT_SECONDS = 20
+GOOGLE_CSE_ENDPOINT = "https://www.googleapis.com/customsearch/v1"
 
 
-# # CLASS: CompanyLookupResult
-# Purpose: store company name, selected ticker symbol, and raw candidates.
+# # CLASS: GoogleSearchResult
+# Purpose: store search query and normalized top results returned by Google Custom Search API.
 @dataclass
-class CompanyLookupResult:
-    """Container for ticker lookup results."""
+class GoogleSearchResult:
+    """Container for Google search results."""
 
-    input_name: str
-    selected_symbol: str | None
-    candidates: list[dict[str, Any]]
-
-
-# # FUNCTION: _load_yfinance
-# Purpose: import yfinance lazily so this file can be imported without hard dependency failure.
-def _load_yfinance():
-    """Load yfinance dynamically.
-
-    Function purpose:
-    - Avoid hard dependency failures when package is not installed.
-    - Keeps this module importable for users who only want to inspect agent code.
-    """
-
-    try:
-        return importlib.import_module("yfinance")
-    except Exception:
-        return None
+    query: str
+    items: list[dict[str, Any]]
 
 
 # # FUNCTION: _safe_get
-# Purpose: make safe HTTP GET requests and return JSON dictionary (or {}).
+# Purpose: make safe HTTP GET requests and return JSON dictionary (or error structure).
 def _safe_get(url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
     """Execute an HTTP GET request and return parsed JSON."""
 
@@ -52,82 +37,100 @@ def _safe_get(url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         req = urllib.request.Request(full_url, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as response:
             return json.loads(response.read().decode("utf-8"))
-    except Exception:
-        return {}
+    except Exception as exc:
+        return {"error": str(exc), "url": url, "params": params or {}}
 
 
-# # FUNCTION: lookup_ticker
-# Purpose: resolve a company name into the best Yahoo Finance ticker symbol candidate.
-def lookup_ticker(company_name: str) -> dict[str, Any]:
-    """Get best Yahoo Finance ticker for a company name.
+# # FUNCTION: _get_google_api_config
+# Purpose: read Google API credentials from environment variables used by Custom Search API.
+def _get_google_api_config() -> dict[str, str | None]:
+    """Return Google API key and CSE ID from environment."""
+
+    return {
+        "api_key": os.getenv("GOOGLE_API_KEY"),
+        "cse_id": os.getenv("GOOGLE_CSE_ID"),
+    }
+
+
+# # FUNCTION: google_custom_search
+# Purpose: perform a Google Custom Search API request and return normalized result items.
+def google_custom_search(query: str, num_results: int = 5) -> dict[str, Any]:
+    """Search Google via Custom Search JSON API.
 
     Function instructions:
-    1) Calls Yahoo search API with the provided company name.
-    2) Picks first EQUITY result as preferred symbol.
-    3) Returns selected symbol and raw candidates for transparency.
+    1) Reads `GOOGLE_API_KEY` and `GOOGLE_CSE_ID` from environment.
+    2) Calls Google Custom Search endpoint for the provided query.
+    3) Normalizes top results into title/link/snippet fields.
     """
 
+    cfg = _get_google_api_config()
+    api_key = cfg.get("api_key")
+    cse_id = cfg.get("cse_id")
+    if not api_key or not cse_id:
+        return {
+            "error": (
+                "Missing Google API credentials. Set GOOGLE_API_KEY and GOOGLE_CSE_ID "
+                "as environment variables."
+            ),
+            "query": query,
+            "items": [],
+        }
+
     payload = _safe_get(
-        "https://query2.finance.yahoo.com/v1/finance/search",
-        params={"q": company_name, "quotes_count": 8, "news_count": 0},
+        GOOGLE_CSE_ENDPOINT,
+        params={
+            "key": api_key,
+            "cx": cse_id,
+            "q": query,
+            "num": max(1, min(num_results, 10)),
+        },
     )
-    quotes = payload.get("quotes", []) if isinstance(payload, dict) else []
 
-    selected = None
-    for quote in quotes:
-        if quote.get("quoteType") == "EQUITY" and quote.get("symbol"):
-            selected = quote["symbol"]
-            break
-    if not selected and quotes:
-        selected = quotes[0].get("symbol")
+    if payload.get("error") and not payload.get("items"):
+        return {"error": payload.get("error"), "query": query, "items": []}
 
-    result = CompanyLookupResult(company_name, selected, quotes)
-    return result.__dict__
+    raw_items = payload.get("items", []) if isinstance(payload, dict) else []
+    items = [
+        {
+            "title": item.get("title"),
+            "link": item.get("link"),
+            "snippet": item.get("snippet"),
+        }
+        for item in raw_items
+    ]
+    return GoogleSearchResult(query=query, items=items).__dict__
+
+
+# # FUNCTION: _join_snippets
+# Purpose: combine snippets from Google results into a single text block for downstream extraction.
+def _join_snippets(items: list[dict[str, Any]]) -> str:
+    """Concatenate snippets from search results."""
+
+    return " ".join((item.get("snippet") or "").strip() for item in items if item.get("snippet"))
 
 
 # # FUNCTION: get_general_overview
-# Purpose: fetch core company profile fields such as sector, industry, and summary.
-def get_general_overview(symbol: str) -> dict[str, Any]:
-    """Fetch broad company profile from Yahoo Finance.
+# Purpose: fetch general company overview by querying Google API for company profile context.
+def get_general_overview(company_name: str) -> dict[str, Any]:
+    """Fetch company overview from Google Search API results."""
 
-    Function instructions:
-    1) Loads yfinance and initializes `Ticker(symbol)`.
-    2) Reads `info` dict for profile fields.
-    3) Returns general overview content used by the final report.
-    """
+    query = f"{company_name} company overview business summary official website"
+    result = google_custom_search(query, num_results=6)
+    if result.get("error"):
+        return {"company_name": company_name, "error": result["error"], "sources": []}
 
-    yf = _load_yfinance()
-    if yf is None:
-        return {"error": "Install dependency: pip install yfinance", "symbol": symbol}
-
-    try:
-        info = yf.Ticker(symbol).info or {}
-    except Exception as exc:
-        return {"error": f"Failed to fetch overview: {exc}", "symbol": symbol}
-
+    snippets_text = _join_snippets(result.get("items", []))
     return {
-        "symbol": symbol,
-        "name": info.get("longName") or info.get("shortName"),
-        "sector": info.get("sector"),
-        "industry": info.get("industry"),
-        "country": info.get("country"),
-        "website": info.get("website"),
-        "employees": info.get("fullTimeEmployees"),
-        "market_cap": info.get("marketCap"),
-        "summary": info.get("longBusinessSummary"),
+        "company_name": company_name,
+        "overview_text": snippets_text,
+        "sources": result.get("items", []),
     }
 
 
 # # FUNCTION: infer_products_from_summary
-# Purpose: infer product/service-related sentences from overview summary text.
+# Purpose: infer product/service bullets from aggregated overview snippet text.
 def infer_products_from_summary(summary: str | None) -> dict[str, Any]:
-    """Infer product/service bullets from text summary.
-
-    Function instructions:
-    1) Splits the business summary into sentences.
-    2) Filters sentences containing product/service-related keywords.
-    3) Returns top unique sentences as product/service hints.
-    """
+    """Infer product/service bullets from text summary."""
 
     if not summary:
         return {"products_or_services": [], "note": "No summary text available."}
@@ -151,84 +154,55 @@ def infer_products_from_summary(summary: str | None) -> dict[str, Any]:
     matched = [s for s in sentences if any(k in s.lower() for k in keywords)]
     return {
         "products_or_services": list(dict.fromkeys(matched))[:8],
-        "note": "Heuristic extraction from business summary.",
+        "note": "Heuristic extraction from Google search snippets.",
     }
 
 
 # # FUNCTION: get_shareholder_pattern
-# Purpose: return major and institutional holder information for a ticker.
-def get_shareholder_pattern(symbol: str) -> dict[str, Any]:
-    """Fetch shareholder pattern (major + institutional holders).
+# Purpose: fetch shareholder-related references using Google API with focused ownership queries.
+def get_shareholder_pattern(company_name: str) -> dict[str, Any]:
+    """Fetch shareholder pattern references from Google Search API."""
 
-    Function instructions:
-    1) Reads `major_holders` from yfinance for high-level ownership split.
-    2) Reads `institutional_holders` for top institutions.
-    3) Converts tables to JSON-friendly structures.
-    """
-
-    yf = _load_yfinance()
-    if yf is None:
-        return {"error": "Install dependency: pip install yfinance", "symbol": symbol}
-
-    try:
-        ticker = yf.Ticker(symbol)
-        major_df = ticker.major_holders
-        inst_df = ticker.institutional_holders
-    except Exception as exc:
-        return {"error": f"Failed to fetch holders: {exc}", "symbol": symbol}
-
-    major_holders = major_df.fillna("").values.tolist() if major_df is not None else []
-    institutional = (
-        inst_df.fillna("").head(15).to_dict("records") if inst_df is not None else []
+    query = (
+        f"{company_name} shareholder pattern major shareholders institutional holders "
+        "ownership structure"
     )
+    result = google_custom_search(query, num_results=8)
+    if result.get("error"):
+        return {"company_name": company_name, "error": result["error"], "sources": []}
 
     return {
-        "symbol": symbol,
-        "major_holders": major_holders,
-        "institutional_holders_top": institutional,
-        "note": "Source: Yahoo Finance via yfinance.",
+        "company_name": company_name,
+        "shareholder_notes": _join_snippets(result.get("items", [])),
+        "sources": result.get("items", []),
+        "note": "Validate shareholding data with official filings/exchange disclosures.",
     }
 
 
 # # FUNCTION: build_company_report
-# Purpose: orchestrate ticker lookup + overview + products + shareholder pattern into one report.
+# Purpose: orchestrate overview/products/shareholder retrieval entirely from Google API searches.
 def build_company_report(company_name: str) -> dict[str, Any]:
-    """Build full report combining overview, products, and shareholder pattern.
+    """Build full report combining overview, products, and shareholder pattern."""
 
-    Function instructions:
-    1) Resolves ticker from company name.
-    2) Collects overview and extracts product/service highlights.
-    3) Collects shareholder pattern and returns final structured JSON.
-    """
+    overview = get_general_overview(company_name)
+    if overview.get("error"):
+        return {"company_name": company_name, "error": overview["error"]}
 
-    lookup = lookup_ticker(company_name)
-    symbol = lookup.get("selected_symbol")
-    if not symbol:
-        return {"company_name": company_name, "error": "Ticker not found", "lookup": lookup}
-
-    overview = get_general_overview(symbol)
-    products = infer_products_from_summary(overview.get("summary"))
-    holders = get_shareholder_pattern(symbol)
+    products = infer_products_from_summary(overview.get("overview_text"))
+    shareholders = get_shareholder_pattern(company_name)
 
     return {
         "company_name": company_name,
-        "ticker": symbol,
         "overview": overview,
         "products": products,
-        "shareholder_pattern": holders,
+        "shareholder_pattern": shareholders,
     }
 
 
 # # FUNCTION: create_root_agent
-# Purpose: create and return a Google ADK Agent with configured tools and instructions.
+# Purpose: create and return a Google ADK Agent with Google-API-based tools and instructions.
 def create_root_agent():
-    """Create and return Google ADK Agent instance.
-
-    Function instructions:
-    1) Dynamically imports `google.adk.agents.Agent`.
-    2) Configures instructions and tool list.
-    3) Returns ADK agent object to be used as root agent in your app.
-    """
+    """Create and return Google ADK Agent instance."""
 
     Agent = importlib.import_module("google.adk.agents").Agent
     return Agent(
@@ -236,12 +210,12 @@ def create_root_agent():
         model="gemini-2.0-flash",
         description="Provides company overview, products/services, and shareholder pattern.",
         instruction=(
-            "You are a financial research assistant. "
-            "When user gives a company name, call build_company_report. "
-            "Respond with sections: General Overview, Products/Services, Shareholder Pattern."
+            "You are a company research assistant. "
+            "Use Google API tool functions to gather overview, products/services, and shareholder info. "
+            "Cite source links from returned results and mention limitations."
         ),
         tools=[
-            lookup_ticker,
+            google_custom_search,
             get_general_overview,
             infer_products_from_summary,
             get_shareholder_pattern,

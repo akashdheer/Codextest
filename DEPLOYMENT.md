@@ -46,7 +46,9 @@ Open: `http://127.0.0.1:8080`
    ```bash
    python ui_company_overview.py
    ```
-6. Add any environment variables required by your ADK/model setup.
+6. Add environment variables:
+   - `GOOGLE_API_KEY`: Google API key for Custom Search API.
+   - `GOOGLE_CSE_ID`: Custom Search Engine ID (`cx`) from Google Programmable Search.
 
 ### Option 2: Railway
 1. Connect your GitHub repository.
@@ -63,6 +65,7 @@ Open: `http://127.0.0.1:8080`
 
 ## Notes
 - This UI can run without ADK server runtime because it calls `build_company_report` directly.
+- Core data retrieval now uses Google Custom Search API and requires `GOOGLE_API_KEY` + `GOOGLE_CSE_ID`.
 - For production, disable debug mode and use a production WSGI server.
 
 
