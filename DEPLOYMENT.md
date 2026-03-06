@@ -8,17 +8,30 @@
 - `wsgi.py`: production WSGI entrypoint for gunicorn.
 - `Procfile`: process command for platforms that read Procfile.
 - `render.yaml`: optional Render blueprint with build/start settings.
+- `API_information/search_providers.py`: API provider integrations + fallback selection.
+- `Tools/company_tools.py`: report-building tools used by the UI/agent.
+- `Agent/company_agent.py`: ADK agent factory wiring tools and APIs.
+- `master_registry.py`: master index of APIs, tools, and agents.
 
 ## Folder structure (keep this layout)
 
 ```text
 Codextest/
 ├─ company_overview_agent.py
-├─ ui_company_overview.py
+├─ master_registry.py
 ├─ requirements.txt
 ├─ wsgi.py
 ├─ Procfile
 ├─ render.yaml
+├─ API_information/
+│  ├─ __init__.py
+│  └─ search_providers.py
+├─ Tools/
+│  ├─ __init__.py
+│  └─ company_tools.py
+├─ Agent/
+│  ├─ __init__.py
+│  └─ company_agent.py
 └─ templates/
    └─ index.html
 ```
