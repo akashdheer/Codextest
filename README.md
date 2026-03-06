@@ -101,3 +101,17 @@ If your default branch is `main`, replace `work` with `main`.
 - Add caching for repeated company queries.
 - Add downloadable report exports (PDF/CSV).
 - Add structured sections for risks, competitors, and leadership.
+
+
+## Agent roles available now
+
+- `Research Agent`: company profile, products, ownership, sectors, and geographies.
+- `News Agent`: news, upcoming/past projects, product demand-supply signals.
+- `Semantic Agent`: positive/negative interpretation and promise-vs-delivery review.
+- `Technical Analyzer`: metric-focused extraction and technical-number analysis.
+- `Technical Researcher`: deeper technical research synthesis.
+- `DCF Analyzer`: DCF-style scenario framing from available evidence.
+- `DCF Helper`: guidance for missing DCF inputs and assumptions.
+- `Master Agent`: orchestration layer coordinating all specialist agents.
+
+Implementation is in `Agent/multi_agents.py`, while `Agent/company_agent.py` keeps backward compatibility via `create_root_agent()`.

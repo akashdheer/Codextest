@@ -10,7 +10,8 @@
 - `render.yaml`: optional Render blueprint with build/start settings.
 - `API_information/search_providers.py`: API provider integrations + fallback selection.
 - `Tools/company_tools.py`: report-building tools used by the UI/agent.
-- `Agent/company_agent.py`: ADK agent factory wiring tools and APIs.
+- `Agent/company_agent.py`: backward-compatible root agent alias to Master Agent.
+- `Agent/multi_agents.py`: definitions for Research, News, Semantic, Technical, DCF, and Master agents.
 - `master_registry.py`: master index of APIs, tools, and agents.
 
 ## Folder structure (keep this layout)
@@ -31,7 +32,8 @@ Codextest/
 │  └─ company_tools.py
 ├─ Agent/
 │  ├─ __init__.py
-│  └─ company_agent.py
+│  ├─ company_agent.py
+│  └─ multi_agents.py
 └─ templates/
    └─ index.html
 ```
