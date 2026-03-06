@@ -80,3 +80,14 @@ gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
 - `wsgi.py` exposes the Flask app object as `app`.
 - `Procfile` contains the same command for platforms that read it automatically.
 - `render.yaml` can be used to provision this service config directly on Render.
+
+
+## Validate API credentials quickly
+
+Run:
+
+```bash
+python company_overview_agent.py --check-api
+```
+
+This command returns explicit diagnostics for missing/invalid `GOOGLE_API_KEY` and `GOOGLE_CSE_ID`.
