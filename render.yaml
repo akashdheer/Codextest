@@ -9,3 +9,10 @@ services:
         value: 3.11.9
       - key: DEBUG
         value: "false"
+
+      - key: SERPAPI_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GOOGLE_CSE_ID
+        sync: false

@@ -47,8 +47,9 @@ Open: `http://127.0.0.1:8080`
    python ui_company_overview.py
    ```
 6. Add environment variables:
-   - `GOOGLE_API_KEY`: Google API key for Custom Search API.
+   - `GOOGLE_API_KEY`: Google API key for Custom Search API (primary provider).
    - `GOOGLE_CSE_ID`: Custom Search Engine ID (`cx`) from Google Programmable Search.
+   - `SERPAPI_API_KEY`: SerpAPI key (automatic fallback when Google CSE fails).
 
 ### Option 2: Railway
 1. Connect your GitHub repository.
@@ -65,7 +66,8 @@ Open: `http://127.0.0.1:8080`
 
 ## Notes
 - This UI can run without ADK server runtime because it calls `build_company_report` directly.
-- Core data retrieval now uses Google Custom Search API and requires `GOOGLE_API_KEY` + `GOOGLE_CSE_ID`.
+- Core data retrieval uses Google Custom Search API as primary, with automatic SerpAPI fallback.
+- Recommended env vars: `GOOGLE_API_KEY`, `GOOGLE_CSE_ID`, and `SERPAPI_API_KEY`.
 - For production, disable debug mode and use a production WSGI server.
 
 
@@ -90,4 +92,4 @@ Run:
 python company_overview_agent.py --check-api
 ```
 
-This command returns explicit diagnostics for missing/invalid `GOOGLE_API_KEY` and `GOOGLE_CSE_ID`.
+This command returns explicit diagnostics for both providers (`GOOGLE_API_KEY`, `GOOGLE_CSE_ID`, `SERPAPI_API_KEY`) and shows which provider is currently usable.
