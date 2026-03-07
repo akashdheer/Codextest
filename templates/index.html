@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Company Overview Agent UI</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; max-width: 1100px; }
+    h1 { margin-bottom: 0.5rem; }
+    form { margin: 1rem 0; display: flex; gap: 0.5rem; }
+    input[type="text"] { flex: 1; padding: 0.6rem; font-size: 1rem; }
+    button { padding: 0.6rem 1rem; cursor: pointer; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #fafafa; padding: 1rem; border-radius: 6px; }
+    .error { color: #a40000; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>Company Overview Provider</h1>
+  <p>Enter a company name. The app collects web evidence and asks the LLM to return a readable answer.</p>
+
+  <form method="POST">
+    <input
+      type="text"
+      name="company_name"
+      placeholder="e.g., Microsoft, Laxmi Organics"
+      value="{{ company_name }}"
+      required
+    />
+    <button type="submit">Get Report</button>
+  </form>
+
+  {% if response_payload %}
+    <div class="card">
+      <h2>LLM Answer</h2>
+      {% if response_payload.llm_error %}
+        <p class="error">{{ response_payload.llm_error }}</p>
+      {% endif %}
+      <pre>{{ response_payload.final_answer }}</pre>
+    </div>
+
+    <div class="card">
+      <h3>Debug Evidence (API output)</h3>
+      <pre>{{ response_payload.report | tojson(indent=2) }}</pre>
+    </div>
+  {% endif %}
+</body>
+</html>
