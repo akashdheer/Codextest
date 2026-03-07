@@ -47,6 +47,8 @@ python ui_company_overview.py
 
 Open: `http://127.0.0.1:8080`
 
+The UI now shows an **LLM-synthesized answer** (not just raw API JSON), plus an optional debug evidence block.
+
 ## Deploy options
 
 ### Option 1: Render (easy)
@@ -65,6 +67,7 @@ Open: `http://127.0.0.1:8080`
    - `GOOGLE_API_KEY`: Google API key for Custom Search API (primary provider).
    - `GOOGLE_CSE_ID`: Custom Search Engine ID (`cx`) from Google Programmable Search.
    - `SERPAPI_API_KEY`: SerpAPI key (automatic fallback when Google CSE fails).
+   - `LLM_MODEL` (optional): model id for final synthesis (default `gemini-1.5-flash`).
 
 ### Option 2: Railway
 1. Connect your GitHub repository.
@@ -80,9 +83,9 @@ Open: `http://127.0.0.1:8080`
 3. Run app behind `gunicorn` + `nginx` for production.
 
 ## Notes
-- This UI can run without ADK server runtime because it calls `build_company_report` directly.
+- This UI can run without ADK server runtime because it calls `build_company_response` directly (evidence + LLM synthesis).
 - Core data retrieval uses Google Custom Search API as primary, with automatic SerpAPI fallback.
-- Recommended env vars: `GOOGLE_API_KEY`, `GOOGLE_CSE_ID`, and `SERPAPI_API_KEY`.
+- Recommended env vars: `GOOGLE_API_KEY`, `GOOGLE_CSE_ID`, `SERPAPI_API_KEY`, and optional `LLM_MODEL`.
 - For production, disable debug mode and use a production WSGI server.
 
 

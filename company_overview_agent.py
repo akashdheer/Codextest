@@ -13,9 +13,13 @@ from API_information.search_providers import (
 from Agent.company_agent import create_root_agent
 from Tools.company_tools import (
     build_company_report,
+    build_company_response,
+    build_llm_context,
+    generate_llm_answer,
     get_general_overview,
     get_shareholder_pattern,
     infer_products_from_summary,
+    normalize_company_name,
 )
 
 
@@ -27,4 +31,4 @@ if __name__ == "__main__":
         print(json.dumps(check_search_api_credentials(), indent=2, default=str))
     else:
         company = arg or "Microsoft"
-        print(json.dumps(build_company_report(company), indent=2, default=str))
+        print(json.dumps(build_company_response(company), indent=2, default=str))

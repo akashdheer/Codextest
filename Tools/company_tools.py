@@ -1,8 +1,12 @@
-"""Tool layer for building company overview report from normalized search data."""
+"""Tool layer for building company overview report and LLM-ready final answers."""
 
 from __future__ import annotations
 
+import json
+import os
 import re
+import urllib.parse
+import urllib.request
 from typing import Any
 
 from API_information.search_providers import check_search_api_credentials, search_web
@@ -14,6 +18,36 @@ def _join_snippets(items: list[dict[str, Any]]) -> str:
     """Concatenate snippets from search results."""
 
     return " ".join((item.get("snippet") or "").strip() for item in items if item.get("snippet"))
+
+
+# # FUNCTION: normalize_company_name
+# Purpose: convert natural-language user prompt into a likely company-name string.
+def normalize_company_name(user_input: str) -> str:
+    """Normalize raw user input to a concise company name.
+
+    Examples:
+    - "Give me shareholder pattern of Microsoft" -> "Microsoft"
+    - "Microsoft" -> "Microsoft"
+    """
+
+    text = (user_input or "").strip()
+    if not text:
+        return ""
+
+    lowered = text.lower().strip(" ?.!")
+    patterns = [
+        r"^give me .*? of (?P<name>.+)$",
+        r"^what is .*? of (?P<name>.+)$",
+        r"^tell me .*? about (?P<name>.+)$",
+        r"^show .*? for (?P<name>.+)$",
+    ]
+    for pattern in patterns:
+        match = re.match(pattern, lowered)
+        if match:
+            name = match.group("name")
+            return " ".join(w.capitalize() for w in name.split())
+
+    return text.strip(" ?.!")
 
 
 # # FUNCTION: get_general_overview
@@ -107,6 +141,7 @@ def get_shareholder_pattern(company_name: str) -> dict[str, Any]:
 def build_company_report(company_name: str) -> dict[str, Any]:
     """Build full report combining overview, products, and shareholder pattern."""
 
+    company_name = normalize_company_name(company_name)
     overview = get_general_overview(company_name)
     if overview.get("error"):
         credential_check = check_search_api_credentials()
@@ -125,4 +160,93 @@ def build_company_report(company_name: str) -> dict[str, Any]:
         "products": products,
         "shareholder_pattern": shareholders,
         "search_provider_used": overview.get("provider"),
+    }
+
+
+# # FUNCTION: build_llm_context
+# Purpose: convert structured report into concise LLM-ready context text.
+def build_llm_context(report: dict[str, Any]) -> str:
+    """Convert structured report to a prompt-friendly context block."""
+
+    return json.dumps(report, indent=2, ensure_ascii=False)
+
+
+# # FUNCTION: generate_llm_answer
+# Purpose: call Gemini API using prepared evidence context and return human-readable answer text.
+def generate_llm_answer(report: dict[str, Any], user_query: str | None = None) -> dict[str, Any]:
+    """Generate final answer text from gathered evidence via Gemini REST API."""
+
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return {
+            "error": "GOOGLE_API_KEY is missing for LLM synthesis.",
+            "answer": "I fetched evidence but cannot synthesize final answer because GOOGLE_API_KEY is not set.",
+        }
+
+    model = os.getenv("LLM_MODEL", "gemini-1.5-flash")
+    prompt = (
+        "You are a financial research assistant. Use the provided evidence JSON to answer user request. "
+        "Write clean markdown with sections: Overview, Products/Services, Shareholder Pattern, "
+        "and Key Risks/Unknowns. Do not dump raw JSON.\n\n"
+        f"User request: {user_query or report.get('company_name','Company overview')}\n\n"
+        f"Evidence JSON:\n{build_llm_context(report)}"
+    )
+
+    endpoint = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        f"?key={urllib.parse.quote(api_key)}"
+    )
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": prompt}],
+            }
+        ]
+    }
+
+    req = urllib.request.Request(
+        endpoint,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            parsed = json.loads(response.read().decode("utf-8"))
+        text = (
+            parsed.get("candidates", [{}])[0]
+            .get("content", {})
+            .get("parts", [{}])[0]
+            .get("text", "")
+            .strip()
+        )
+        if not text:
+            return {
+                "error": "LLM returned empty text.",
+                "answer": "Evidence was collected, but LLM response was empty.",
+            }
+        return {"answer": text, "model": model}
+    except Exception as exc:
+        return {
+            "error": f"LLM API call failed: {exc}",
+            "answer": "Evidence was collected, but final LLM synthesis failed.",
+        }
+
+
+# # FUNCTION: build_company_response
+# Purpose: complete pipeline: search evidence + LLM synthesis for end-user readable output.
+def build_company_response(user_input: str) -> dict[str, Any]:
+    """Return evidence and final synthesized answer for UI/agent usage."""
+
+    company_name = normalize_company_name(user_input)
+    report = build_company_report(company_name)
+    synthesis = generate_llm_answer(report, user_query=user_input)
+    return {
+        "company_name": company_name,
+        "final_answer": synthesis.get("answer"),
+        "llm_error": synthesis.get("error"),
+        "llm_model": synthesis.get("model"),
+        "report": report,
     }

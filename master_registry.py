@@ -21,9 +21,13 @@ from Agent.multi_agents import (
 )
 from Tools.company_tools import (
     build_company_report,
+    build_company_response,
+    build_llm_context,
+    generate_llm_answer,
     get_general_overview,
     get_shareholder_pattern,
     infer_products_from_summary,
+    normalize_company_name,
 )
 
 MASTER_REGISTRY = {
@@ -38,6 +42,10 @@ MASTER_REGISTRY = {
         "infer_products_from_summary": infer_products_from_summary,
         "get_shareholder_pattern": get_shareholder_pattern,
         "build_company_report": build_company_report,
+        "build_company_response": build_company_response,
+        "build_llm_context": build_llm_context,
+        "generate_llm_answer": generate_llm_answer,
+        "normalize_company_name": normalize_company_name,
     },
     "agents": {
         "create_agent_catalog": create_agent_catalog,

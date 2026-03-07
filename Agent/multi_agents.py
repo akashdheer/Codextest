@@ -26,9 +26,13 @@ from API_information.search_providers import (
 )
 from Tools.company_tools import (
     build_company_report,
+    build_company_response,
+    build_llm_context,
+    generate_llm_answer,
     get_general_overview,
     get_shareholder_pattern,
     infer_products_from_summary,
+    normalize_company_name,
 )
 
 
@@ -65,7 +69,11 @@ def create_research_agent():
             get_general_overview,
             infer_products_from_summary,
             get_shareholder_pattern,
+            build_llm_context,
+            generate_llm_answer,
+            normalize_company_name,
             build_company_report,
+            build_company_response,
         ],
     )
 
@@ -248,7 +256,11 @@ def create_master_agent():
             get_general_overview,
             infer_products_from_summary,
             get_shareholder_pattern,
+            build_llm_context,
+            generate_llm_answer,
+            normalize_company_name,
             build_company_report,
+            build_company_response,
         ],
     )
 

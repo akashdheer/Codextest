@@ -56,6 +56,7 @@ Given a company name, the system can:
 - `GOOGLE_API_KEY`
 - `GOOGLE_CSE_ID`
 - `SERPAPI_API_KEY`
+- `LLM_MODEL` (optional, default: `gemini-1.5-flash`)
 
 > Recommended: set all three for best reliability (Google primary + SerpAPI fallback).
 
@@ -67,6 +68,8 @@ python ui_company_overview.py
 ```
 
 Open: `http://127.0.0.1:8080`
+
+The UI now shows an **LLM-synthesized answer** (not just raw API JSON), plus an optional debug evidence block.
 
 ## Validate API configuration
 
